@@ -18,7 +18,7 @@ describe("document", () => {
   test("create", async () => {
     await request(app)
       .post("/dbs/test/colls/test/docs")
-      .send({ id: "test-document", data: "test-data" })
+      .send({ id, data: "test-data" })
       .then((res) => {
         expect(res.body).toEqual(expected);
       });
