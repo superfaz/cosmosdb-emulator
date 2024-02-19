@@ -106,10 +106,6 @@ app.get("/dbs", (req, res) => {
   });
 });
 
-// Request:
-// {
-//   "id": "test-db"
-// }
 const DatabaseCreate = z
   .object({
     id: z.string(),
@@ -147,21 +143,21 @@ app.get("/dbs/:db", (req, res) => {
   }
 });
 
-// Request:
-// {
-//   "id": "_migrations",
-//   "partitionKey": {
-//     "paths": [
-//       "/id"
-//     ]
-//   }
-// }
+const ContainerCreate = z
+  .object({
+    id: z.string(),
+    partitionKey: z.object({
+      paths: z.array(z.string()),
+    }),
+  })
+  .strict();
 app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
-  const db = req.params.db;
-  const id = req.body.id;
+  const dbHash = hashString(z.string().parse(req.params.db));
+  const request = ContainerCreate.parse(req.body);
+  const idHash = hashString(request.id);
 
   const collection = {
-    id,
+    id: request.id,
     indexingPolicy: {
       indexingMode: "consistent",
       automatic: true,
@@ -188,9 +184,9 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
     geospatialConfig: {
       type: "Geography",
     },
-    _rid: id,
+    _rid: idHash,
     _ts: Math.floor(new Date().getTime() / 1000),
-    _self: `dbs/${db}/colls/${id}/`,
+    _self: `dbs/${dbHash}/colls/${idHash}/`,
     _etag: randomUUID(),
     _docs: "docs/",
     _sprocs: "sprocs/",
@@ -199,9 +195,9 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
     _conflicts: "conflicts/",
   };
 
-  fs.mkdirSync(`./data/${db}/colls`, { recursive: true });
+  fs.mkdirSync(`./data/${dbHash}/colls`, { recursive: true });
   fs.writeFileSync(
-    `./data/${db}/colls/${id}.json`,
+    `./data/${dbHash}/colls/${idHash}.json`,
     JSON.stringify(collection, null, 2)
   );
 
@@ -209,11 +205,13 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
 });
 
 app.get("/dbs/:db/colls/:coll", (req, res) => {
-  const db = req.params.db;
-  const coll = req.params.coll;
-  if (fs.existsSync(`./data/${db}/colls/${coll}.json`)) {
+  const dbHash = hashString(z.string().parse(req.params.db));
+  const collHash = hashString(z.string().parse(req.params.coll));
+  if (fs.existsSync(`./data/${dbHash}/colls/${collHash}.json`)) {
     res.json(
-      JSON.parse(fs.readFileSync(`./data/${db}/colls/${coll}.json`, "utf-8"))
+      JSON.parse(
+        fs.readFileSync(`./data/${dbHash}/colls/${collHash}.json`, "utf-8")
+      )
     );
   } else {
     res.status(404).json({
@@ -227,22 +225,27 @@ app.get("/dbs/:db/colls/:coll", (req, res) => {
 // {
 //   "id": "20240110-update-classes-id"
 // }
+const DocumentCreate = z.object({
+  id: z.string(),
+});
 app.post("/dbs/:db/colls/:coll/docs", bodyParser.json(), (req, res) => {
-  const db = req.params.db;
-  const coll = req.params.coll;
-  const id = req.body.id;
+  const dbHash = hashString(z.string().parse(req.params.db));
+  const collHash = hashString(z.string().parse(req.params.coll));
+  const request = DocumentCreate.parse(req.body);
+  const idHash = hashString(request.id);
+
   const document = {
     ...req.body,
     _etag: randomUUID(),
-    _rid: id,
-    _self: `dbs/${db}/colls/${coll}/docs/${id}/`,
+    _rid: request.id,
+    _self: `dbs/${dbHash}/colls/${collHash}/docs/${request.id}/`,
     _ts: Math.floor(new Date().getTime() / 1000),
     _attachments: "attachments/",
   };
 
-  fs.mkdirSync(`./data/${db}/colls/${coll}/docs`, { recursive: true });
+  fs.mkdirSync(`./data/${dbHash}/colls/${collHash}/docs`, { recursive: true });
   fs.writeFileSync(
-    `./data/${db}/colls/${coll}/docs/${id}.json`,
+    `./data/${dbHash}/colls/${collHash}/docs/${idHash}.json`,
     JSON.stringify(document, null, 2)
   );
 
