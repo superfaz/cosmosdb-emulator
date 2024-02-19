@@ -159,6 +159,10 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
 
   const collection = {
     id: request.id,
+    partitionKey: {
+      paths: req.body.partitionKey.paths,
+      kind: "Hash",
+    },
     indexingPolicy: {
       indexingMode: "consistent",
       automatic: true,
@@ -173,10 +177,6 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
         },
       ],
     },
-    partitionKey: {
-      paths: req.body.partitionKey.paths,
-      kind: "Hash",
-    },
     conflictResolutionPolicy: {
       mode: "LastWriterWins",
       conflictResolutionPath: "/_ts",
@@ -189,6 +189,8 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
     _ts: Math.floor(new Date().getTime() / 1000),
     _self: `dbs/${dbHash}/colls/${idHash}/`,
     _etag: randomUUID(),
+    _colls: "colls/",
+    _users: "users/",
     _docs: "docs/",
     _sprocs: "sprocs/",
     _triggers: "triggers/",
