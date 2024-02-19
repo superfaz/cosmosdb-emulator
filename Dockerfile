@@ -2,12 +2,20 @@ FROM node:20-alpine
 
 # Create app directory
 WORKDIR /app
-COPY . .
+ENV NODE_ENV=production
 
 # Install app dependencies
-RUN corepack enable
-RUN yarn install
+COPY package.json ./
+RUN npm install --omit=dev
 
-CMD [ "yarn", "start" ]
+# Bundle app
+COPY ./dist .
+COPY .certs/ .certs/
+
+# Prepare data volume
+RUN mkdir data
+VOLUME [ "/app/data" ]
+
+CMD [ "node", "index.js" ]
 
 EXPOSE 8081

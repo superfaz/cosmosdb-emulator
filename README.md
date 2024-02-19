@@ -28,7 +28,14 @@ docker run --name cosmosdb-emulator -p 127.0.0.1:8081:8081 -d superfaz/cosmosdb-
 
 ```bash
 docker build . --tag cosmosdb-emulator:latest
-docker run --name cosmosdb-emulator -p 127.0.0.1:8081:8081 -d cosmosdb-emulator:latest
+docker run --name cosmosdb-emulator -p 127.0.0.1:8081:8081 -v data:/app/data -d cosmosdb-emulator:latest
+```
+
+### Docker - Local publish
+
+```bash
+docker tag cosmosdb-emulator:latest superfaz/cosmosdb-emulator:latest
+docker push superfaz/cosmosdb-emulator:latest
 ```
 
 ### Commands to create a new self-signed certificate
