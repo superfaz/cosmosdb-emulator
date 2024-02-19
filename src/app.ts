@@ -10,6 +10,7 @@ import { hashString } from "./helper";
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 const app = express();
+app.disable("x-powered-by");
 
 app.use(
   pinoHttp({
