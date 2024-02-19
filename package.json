@@ -9,7 +9,7 @@
   "private": true,
   "packageManager": "yarn@4.1.0",
   "scripts": {
-    "dev": "tsx src/index.ts -w | pino-pretty --ignore=reqId",
+    "dev": "tsx watch src/index.ts | pino-pretty --ignore=reqId",
     "start": "tsx src/index.ts | pino-pretty --ignore=reqId --messageFormat='{if reqId}[{reqId}] {end}{msg}'",
     "test": "vitest --ui",
     "test:ci": "vitest run --coverage",
