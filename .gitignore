@@ -11,3 +11,4 @@ node_modules/
 # Project
 data/
 dist/
+coverage/
