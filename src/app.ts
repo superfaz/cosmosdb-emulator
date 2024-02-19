@@ -1,18 +1,14 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
-import https from "node:https";
 import bodyParser from "body-parser";
 import express from "express";
-import { pino } from "pino";
 import { pinoHttp } from "pino-http";
+import { rootLogger } from "./logger";
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-const port = +(process.env.COSMOS_PORT ?? 8081);
-
-const rootLogger = pino({ level: process.env.LOG_LEVEL ?? "info" });
-
 const app = express();
+
 app.use(
   pinoHttp({
     quietReqLogger: true,
@@ -30,7 +26,7 @@ app.all("*", (req, res, next) => {
 });
 
 app.get("/", (req, res) => {
-  res.send({
+  res.json({
     _self: "",
     id: "localhost",
     _rid: "localhost",
@@ -76,13 +72,19 @@ app.get("/dbs", (req, res) => {
   const files = fs
     .readdirSync("./data")
     .filter((file) => file.endsWith(".json"));
-  res.send({
+  res.json({
     _rid: "localhost",
-    Databases: files.map((file) => fs.readFileSync("./data/" + file, "utf-8")),
+    Databases: files
+      .map((file) => fs.readFileSync("./data/" + file, "utf-8"))
+      .map((file) => JSON.parse(file)),
     _count: files.length,
   });
 });
 
+// Request:
+// {
+//   "id": "test-db"
+// }
 app.post("/dbs", bodyParser.json(), (req, res) => {
   const id = req.body.id;
   const database = {
@@ -92,20 +94,20 @@ app.post("/dbs", bodyParser.json(), (req, res) => {
     _etag: randomUUID(),
     _colls: "colls/",
     _users: "users/",
-    _ts: Math.floor(Date.UTC(Date.now()) / 1000),
+    _ts: Math.floor(new Date().getTime() / 1000),
   };
   fs.mkdirSync("./data", { recursive: true });
   fs.writeFileSync(`./data/${id}.json`, JSON.stringify(database, null, 2));
 
-  res.send(JSON.stringify(database));
+  res.json(database);
 });
 
 app.get("/dbs/:db", (req, res) => {
   const db = req.params.db;
   if (fs.existsSync(`./data/${db}.json`)) {
-    res.send(fs.readFileSync(`./data/${db}.json`, "utf-8"));
+    res.json(JSON.parse(fs.readFileSync(`./data/${db}.json`, "utf-8")));
   } else {
-    res.status(404).send({
+    res.status(404).json({
       code: "NotFound",
       message: "Resource Not Found",
     });
@@ -154,7 +156,7 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
       type: "Geography",
     },
     _rid: id,
-    _ts: Math.floor(Date.UTC(Date.now()) / 1000),
+    _ts: Math.floor(new Date().getTime() / 1000),
     _self: `dbs/${db}/colls/${id}/`,
     _etag: randomUUID(),
     _docs: "docs/",
@@ -170,16 +172,16 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
     JSON.stringify(collection, null, 2)
   );
 
-  res.send(JSON.stringify(collection));
+  res.json(collection);
 });
 
 app.get("/dbs/:db/colls/:coll", (req, res) => {
   const db = req.params.db;
   const coll = req.params.coll;
   if (fs.existsSync(`./data/${db}/colls/${coll}.json`)) {
-    res.send(fs.readFileSync(`./data/${db}/colls/${coll}.json`, "utf-8"));
+    res.json(JSON.parse(fs.readFileSync(`./data/${db}/colls/${coll}.json`, "utf-8")));
   } else {
-    res.status(404).send({
+    res.status(404).json({
       code: "NotFound",
       message: "Resource Not Found",
     });
@@ -199,7 +201,7 @@ app.post("/dbs/:db/colls/:coll/docs", bodyParser.json(), (req, res) => {
     _etag: randomUUID(),
     _rid: id,
     _self: `dbs/${db}/colls/${coll}/docs/${id}/`,
-    _ts: Math.floor(Date.UTC(Date.now()) / 1000),
+    _ts: Math.floor(new Date().getTime() / 1000),
     _attachments: "attachments/",
   };
 
@@ -209,7 +211,7 @@ app.post("/dbs/:db/colls/:coll/docs", bodyParser.json(), (req, res) => {
     JSON.stringify(document, null, 2)
   );
 
-  res.send(JSON.stringify(document));
+  res.json(document);
 });
 
 app.all("*", bodyParser.json(), async (req, res) => {
@@ -256,18 +258,8 @@ app.all("*", bodyParser.json(), async (req, res) => {
 
   res.statusCode = result.status;
   res.statusMessage = result.statusText;
-  res.send(response);
+  res.json(response);
   */
 });
 
-https
-  .createServer(
-    {
-      key: fs.readFileSync(".certs/key.pem"),
-      cert: fs.readFileSync(".certs/cert.pem"),
-    },
-    app
-  )
-  .listen(port, () => {
-    rootLogger.info(`Server running at https://localhost:${port}`);
-  });
+export default app;
