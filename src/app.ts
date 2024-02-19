@@ -12,6 +12,10 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const app = express();
 app.disable("x-powered-by");
 
+const configuredBodyParser = bodyParser.json({
+  type: ["application/json", "application/query+json"],
+});
+
 app.use(
   pinoHttp({
     quietReqLogger: true,
@@ -112,7 +116,7 @@ const DatabaseCreate = z
     id: z.string(),
   })
   .strict();
-app.post("/dbs", bodyParser.json(), (req, res) => {
+app.post("/dbs", configuredBodyParser, (req, res) => {
   const request = DatabaseCreate.parse(req.body);
   const hash = hashString(request.id);
   const database = {
@@ -152,7 +156,7 @@ const ContainerCreate = z
     }),
   })
   .strict();
-app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
+app.post("/dbs/:db/colls", configuredBodyParser, (req, res) => {
   const dbHash = hashString(z.string().parse(req.params.db));
   const request = ContainerCreate.parse(req.body);
   const idHash = hashString(request.id);
@@ -231,31 +235,46 @@ app.get("/dbs/:db/colls/:coll", (req, res) => {
 const DocumentCreate = z.object({
   id: z.string(),
 });
-app.post("/dbs/:db/colls/:coll/docs", bodyParser.json(), (req, res) => {
-  const dbHash = hashString(z.string().parse(req.params.db));
-  const collHash = hashString(z.string().parse(req.params.coll));
-  const request = DocumentCreate.parse(req.body);
-  const idHash = hashString(request.id);
+const Query = z.object({
+  query: z.string(),
+});
+app.post("/dbs/:db/colls/:coll/docs", configuredBodyParser, (req, res) => {
+  req.log.info(`Headers: ${JSON.stringify(req.headers, null, 2)}`);
+  if (
+    req.headers["x-ms-cosmos-is-query-plan-request"] !== undefined &&
+    req.headers["x-ms-cosmos-is-query-plan-request"] === "True"
+  ) {
+    req.log.info(`Body: ${JSON.stringify(req.body, null, 2)}`);
+    const query = Query.parse(req.body);
+    
+  } else {
+    const dbHash = hashString(z.string().parse(req.params.db));
+    const collHash = hashString(z.string().parse(req.params.coll));
+    const request = DocumentCreate.parse(req.body);
+    const idHash = hashString(request.id);
 
-  const document = {
-    ...req.body,
-    _etag: randomUUID(),
-    _rid: idHash,
-    _self: `dbs/${dbHash}/colls/${collHash}/docs/${idHash}/`,
-    _ts: Math.floor(new Date().getTime() / 1000),
-    _attachments: "attachments/",
-  };
+    const document = {
+      ...req.body,
+      _etag: randomUUID(),
+      _rid: idHash,
+      _self: `dbs/${dbHash}/colls/${collHash}/docs/${idHash}/`,
+      _ts: Math.floor(new Date().getTime() / 1000),
+      _attachments: "attachments/",
+    };
 
-  fs.mkdirSync(`./data/${dbHash}/colls/${collHash}/docs`, { recursive: true });
-  fs.writeFileSync(
-    `./data/${dbHash}/colls/${collHash}/docs/${idHash}.json`,
-    JSON.stringify(document, null, 2)
-  );
+    fs.mkdirSync(`./data/${dbHash}/colls/${collHash}/docs`, {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      `./data/${dbHash}/colls/${collHash}/docs/${idHash}.json`,
+      JSON.stringify(document, null, 2)
+    );
 
-  res.json(document);
+    res.json(document);
+  }
 });
 
-app.all("*", bodyParser.json(), (req, res, next) => {
+app.all("*", configuredBodyParser, (req, res, next) => {
   req.log.debug("Request received");
   req.log.debug(`${req.method} ${req.url}`);
   req.log.debug(`Headers: ${JSON.stringify(req.headers, null, 2)}`);
@@ -264,7 +283,7 @@ app.all("*", bodyParser.json(), (req, res, next) => {
 });
 
 /*
-app.all("*", bodyParser.json(), async (req, res) => {
+app.all("*", configuredBodyParser, async (req, res) => {
   const headers = {
     "x-ms-documentdb-responsecontinuationtokenlimitinkb": "1",
     "x-ms-documentdb-query-enablecrosspartition": "true",
