@@ -88,7 +88,7 @@ app.get("/dbs", (req, res) => {
 app.post("/dbs", bodyParser.json(), (req, res) => {
   const id = req.body.id;
   const database = {
-    id: id,
+    id,
     _rid: id,
     _self: `dbs/${id}/`,
     _etag: randomUUID(),
@@ -128,7 +128,7 @@ app.post("/dbs/:db/colls", bodyParser.json(), (req, res) => {
   const id = req.body.id;
 
   const collection = {
-    id: id,
+    id,
     indexingPolicy: {
       indexingMode: "consistent",
       automatic: true,
@@ -179,7 +179,9 @@ app.get("/dbs/:db/colls/:coll", (req, res) => {
   const db = req.params.db;
   const coll = req.params.coll;
   if (fs.existsSync(`./data/${db}/colls/${coll}.json`)) {
-    res.json(JSON.parse(fs.readFileSync(`./data/${db}/colls/${coll}.json`, "utf-8")));
+    res.json(
+      JSON.parse(fs.readFileSync(`./data/${db}/colls/${coll}.json`, "utf-8"))
+    );
   } else {
     res.status(404).json({
       code: "NotFound",
@@ -214,13 +216,16 @@ app.post("/dbs/:db/colls/:coll/docs", bodyParser.json(), (req, res) => {
   res.json(document);
 });
 
-app.all("*", bodyParser.json(), async (req, res) => {
+app.all("*", bodyParser.json(), (req, res, next) => {
   req.log.debug("Request received");
   req.log.debug(`${req.method} ${req.url}`);
   req.log.debug(`Headers: ${JSON.stringify(req.headers, null, 2)}`);
   req.log.debug(`Body: ${JSON.stringify(req.body, null, 2)}`);
+  next();
+});
 
-  /*
+/*
+app.all("*", bodyParser.json(), async (req, res) => {
   const headers = {
     "x-ms-documentdb-responsecontinuationtokenlimitinkb": "1",
     "x-ms-documentdb-query-enablecrosspartition": "true",
@@ -259,7 +264,7 @@ app.all("*", bodyParser.json(), async (req, res) => {
   res.statusCode = result.status;
   res.statusMessage = result.statusText;
   res.json(response);
-  */
 });
+*/
 
 export default app;
