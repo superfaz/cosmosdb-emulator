@@ -240,8 +240,8 @@ app.post("/dbs/:db/colls/:coll/docs", bodyParser.json(), (req, res) => {
   const document = {
     ...req.body,
     _etag: randomUUID(),
-    _rid: request.id,
-    _self: `dbs/${dbHash}/colls/${collHash}/docs/${request.id}/`,
+    _rid: idHash,
+    _self: `dbs/${dbHash}/colls/${collHash}/docs/${idHash}/`,
     _ts: Math.floor(new Date().getTime() / 1000),
     _attachments: "attachments/",
   };
