@@ -1,16 +1,11 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import bodyParser from "body-parser";
 import express from "express";
 import { pinoHttp } from "pino-http";
-import { z } from "zod";
+import { ZodError, z } from "zod";
 import { rootLogger } from "./logger";
-
-export function hashString(input: string): string {
-  const hash = createHash("sha256");
-  hash.update(input);
-  return hash.digest("hex").substring(0, 32);
-}
+import { hashString } from "./helper";
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -30,6 +25,29 @@ app.use(
 app.all("*", (req, res, next) => {
   req.log.info("Received: %s %s", req.method, req.url);
   next();
+});
+
+/**
+ * Middleware to handle errors.
+ */
+app.all("*", (req, res, next) => {
+  try {
+    next();
+  } catch (error) {
+    if (error instanceof ZodError) {
+      req.log.error("Invalid input", error.errors);
+      res.status(400).json({
+        code: "BadRequest",
+        message: "Invalid input",
+      });
+    } else {
+      req.log.fatal("Unknown error", error);
+      res.status(500).json({
+        code: "InternalServerError",
+        message: "An error occurred",
+      });
+    }
+  }
 });
 
 app.get("/", (req, res) => {
@@ -92,30 +110,16 @@ app.get("/dbs", (req, res) => {
 // {
 //   "id": "test-db"
 // }
-const Database = z
+const DatabaseCreate = z
   .object({
     id: z.string(),
   })
   .strict();
 app.post("/dbs", bodyParser.json(), (req, res) => {
-  const result = Database.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({
-      code: "BadRequest",
-      message: "Invalid input",
-    });
-    return;
-  }
-
-  const request = result.data;
-  const id = request.id;
-  if (id === undefined) {
-    res.status(400).json({ code: "Invalid", message: "id is required" });
-  }
-
+  const request = DatabaseCreate.parse(req.body);
   const hash = hashString(request.id);
   const database = {
-    id,
+    id: request.id,
     _rid: hash,
     _self: `dbs/${hash}/`,
     _etag: randomUUID(),
@@ -123,6 +127,7 @@ app.post("/dbs", bodyParser.json(), (req, res) => {
     _users: "users/",
     _ts: Math.floor(new Date().getTime() / 1000),
   };
+
   fs.mkdirSync("./data", { recursive: true });
   fs.writeFileSync(`./data/${hash}.json`, JSON.stringify(database, null, 2));
 
@@ -130,7 +135,7 @@ app.post("/dbs", bodyParser.json(), (req, res) => {
 });
 
 app.get("/dbs/:db", (req, res) => {
-  const db = req.params.db;
+  const db = z.string().parse(req.params.db);
   const hash = hashString(db);
   if (fs.existsSync(`./data/${hash}.json`)) {
     res.json(JSON.parse(fs.readFileSync(`./data/${hash}.json`, "utf-8")));

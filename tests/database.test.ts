@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import request from "supertest";
-import app, { hashString } from "../src/app";
+import app from "../src/app";
+import { hashString } from "../src/helper";
 
 describe("database", () => {
   const expected = {
