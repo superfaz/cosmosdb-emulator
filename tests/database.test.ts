@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
 import request from "supertest";
-import app from "../src/app";
+import app, { hashString } from "../src/app";
 
 describe("database", () => {
   const expected = {
     id: "test-db",
-    _rid: "test-db",
-    _self: "dbs/test-db/",
+    _rid: hashString("test-db"),
+    _self: `dbs/${hashString("test-db")}/`,
     _etag: expect.any(String),
     _colls: "colls/",
     _users: "users/",

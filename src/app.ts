@@ -6,7 +6,7 @@ import { pinoHttp } from "pino-http";
 import { z } from "zod";
 import { rootLogger } from "./logger";
 
-function hashString(input: string): string {
+export function hashString(input: string): string {
   const hash = createHash("sha256");
   hash.update(input);
   return hash.digest("hex").substring(0, 32);
@@ -131,8 +131,9 @@ app.post("/dbs", bodyParser.json(), (req, res) => {
 
 app.get("/dbs/:db", (req, res) => {
   const db = req.params.db;
-  if (fs.existsSync(`./data/${db}.json`)) {
-    res.json(JSON.parse(fs.readFileSync(`./data/${db}.json`, "utf-8")));
+  const hash = hashString(db);
+  if (fs.existsSync(`./data/${hash}.json`)) {
+    res.json(JSON.parse(fs.readFileSync(`./data/${hash}.json`, "utf-8")));
   } else {
     res.status(404).json({
       code: "NotFound",
