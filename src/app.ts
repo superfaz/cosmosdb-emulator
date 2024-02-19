@@ -1,9 +1,16 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import bodyParser from "body-parser";
 import express from "express";
 import { pinoHttp } from "pino-http";
+import { z } from "zod";
 import { rootLogger } from "./logger";
+
+function hashString(input: string): string {
+  const hash = createHash("sha256");
+  hash.update(input);
+  return hash.digest("hex").substring(0, 32);
+}
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -85,19 +92,39 @@ app.get("/dbs", (req, res) => {
 // {
 //   "id": "test-db"
 // }
+const Database = z
+  .object({
+    id: z.string(),
+  })
+  .strict();
 app.post("/dbs", bodyParser.json(), (req, res) => {
-  const id = req.body.id;
+  const result = Database.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({
+      code: "BadRequest",
+      message: "Invalid input",
+    });
+    return;
+  }
+
+  const request = result.data;
+  const id = request.id;
+  if (id === undefined) {
+    res.status(400).json({ code: "Invalid", message: "id is required" });
+  }
+
+  const hash = hashString(request.id);
   const database = {
     id,
-    _rid: id,
-    _self: `dbs/${id}/`,
+    _rid: hash,
+    _self: `dbs/${hash}/`,
     _etag: randomUUID(),
     _colls: "colls/",
     _users: "users/",
     _ts: Math.floor(new Date().getTime() / 1000),
   };
   fs.mkdirSync("./data", { recursive: true });
-  fs.writeFileSync(`./data/${id}.json`, JSON.stringify(database, null, 2));
+  fs.writeFileSync(`./data/${hash}.json`, JSON.stringify(database, null, 2));
 
   res.json(database);
 });
