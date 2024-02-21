@@ -183,7 +183,7 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
       message: "Invalid input",
     });
   } else {
-    req.log.fatal("Unknown error: " + JSON.stringify(error, null, 2));
+    req.log.fatal("Unknown error: " + error.message);
     res.status(500).json({
       code: "InternalServerError",
       message: "An error occurred",
