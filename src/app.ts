@@ -4,11 +4,10 @@ import { pinoHttp } from "pino-http";
 import { ZodError, z } from "zod";
 import { isErrorResponse } from "./helper";
 import { rootLogger } from "./logger";
-import { parseQuery } from "./parser";
 import container, { ContainerCreate } from "./services/container";
 import database, { DatabaseCreate } from "./services/database";
 import server from "./services/server";
-import document, { DocumentCreate } from "./services/document";
+import document, { DocumentCreate, DocumentQuery } from "./services/document";
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -103,23 +102,16 @@ app.get("/dbs/:db/colls/:coll", (req, res) => {
   res.json(instance);
 });
 
-const Query = z.object({
-  query: z.string(),
-});
 app.post("/dbs/:db/colls/:coll/docs", configuredBodyParser, (req, res) => {
   const db = z.string().parse(req.params.db);
   const coll = z.string().parse(req.params.coll);
 
-  req.log.info(`Headers: ${JSON.stringify(req.headers, null, 2)}`);
   if (
     req.headers["x-ms-documentdb-isquery"] === "true" ||
     req.headers["x-ms-cosmos-is-query-plan-request"] === "True"
   ) {
-    const request = Query.parse(req.body);
-    const query = parseQuery(request.query);
-    res.log.info(query);
-
-    res.json(document.getAll(db, coll));
+    const request = DocumentQuery.parse(req.body);
+    res.json(document.query(db, coll, request));
   } else {
     const request = DocumentCreate.parse(req.body);
     res.json(document.create(db, coll, request));
@@ -133,48 +125,5 @@ app.all("*", configuredBodyParser, (req, res, next) => {
   req.log.debug(`Body: ${JSON.stringify(req.body, null, 2)}`);
   next();
 });
-
-/*
-app.all("*", configuredBodyParser, async (req, res) => {
-  const headers = {
-    "x-ms-documentdb-responsecontinuationtokenlimitinkb": "1",
-    "x-ms-documentdb-query-enablecrosspartition": "true",
-    "cache-control": "no-cache",
-    "x-ms-version": "2020-07-15",
-    "user-agent": "Node.js/20.11.0 (win32; x64) azure-cosmos-js/4.0.0",
-    "x-ms-cosmos-allow-tentative-writes": "true",
-    "x-ms-date": req.headers["x-ms-date"] as string,
-    accept: "application/json",
-    authorization: req.headers.authorization as string,
-    connection: "keep-alive",
-    host: "localhost:8082",
-  };
-
-  if (req.headers["x-ms-documentdb-partitionkey"] !== undefined) {
-    headers["x-ms-documentdb-partitionkey"] = req.headers[
-      "x-ms-documentdb-partitionkey"
-    ] as string;
-  }
-
-  if (req.headers["x-ms-documentdb-is-upsert"] !== undefined) {
-    headers["x-ms-documentdb-is-upsert"] = req.headers[
-      "x-ms-documentdb-is-upsert"
-    ] as string;
-  }
-
-  const result = await fetch(`https://localhost:8082${req.url}`, {
-    method: req.method,
-    headers: headers,
-    body: req.method !== "GET" ? JSON.stringify(req.body) : undefined,
-  });
-
-  const response = await result.json();
-  req.log.debug("Response:", JSON.stringify(response, null, 2));
-
-  res.statusCode = result.status;
-  res.statusMessage = result.statusText;
-  res.json(response);
-});
-*/
 
 export default app;

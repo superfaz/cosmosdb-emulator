@@ -5,6 +5,7 @@ import { hashString } from "../src/helper";
 
 describe("document", () => {
   const id = "test-document";
+  const baseUrl = "/dbs/test/colls/test/docs";
   const expected = {
     id,
     data: "test-data",
@@ -17,7 +18,7 @@ describe("document", () => {
 
   test("create", async () => {
     await request(app)
-      .post("/dbs/test/colls/test/docs")
+      .post(baseUrl)
       .send({ id, data: "test-data" })
       .then((res) => {
         expect(res.body).toEqual(expected);
@@ -26,7 +27,7 @@ describe("document", () => {
 
   test.skip("list", async () => {
     await request(app)
-      .get("/dbs/test/colls/test/docs")
+      .post(baseUrl)
       .send()
       .expect(200)
       .then((res) => {
@@ -41,7 +42,7 @@ describe("document", () => {
 
   test.skip("get", async () => {
     await request(app)
-      .get("/dbs/test/colls/test/docs/test-document")
+      .get(baseUrl + "/test-document")
       .send()
       .expect(200)
       .then((res) => {

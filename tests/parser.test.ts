@@ -112,4 +112,16 @@ describe("parseQuery", () => {
       sorts: ["c.order"],
     });
   });
+
+  test("parses a lower case query", () => {
+    const query = "select * from c order by c.order";
+    const result = parseQuery(query);
+    expect(result).toEqual({
+      success: true,
+      columns: ["*"],
+      tables: ["c"],
+      filters: [],
+      sorts: ["c.order"],
+    });
+  });
 });

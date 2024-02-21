@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { z } from "zod";
-import { hashString } from "../helper";
+import { type ErrorResponse, hashString } from "../helper";
+import { parseQuery } from "../parser";
 
 export const DocumentCreate = z.custom<{
   [key: string]: unknown;
@@ -67,4 +68,63 @@ export function documentGetAll(db: string, coll: string): Document[] {
     .map((file) => JSON.parse(file));
 }
 
-export default { create: documentCreate, getAll: documentGetAll };
+export const DocumentQuery = z.object({
+  query: z.string(),
+});
+
+function sortDocument(a: Document, b: Document, sort: string): number {
+  const asort: unknown = a[sort];
+  const bsort: unknown = b[sort];
+  if (asort === undefined || bsort === undefined) {
+    throw new Error("Invalid sort");
+  }
+  if (typeof asort === "number" && typeof bsort === "number") {
+    return asort - bsort;
+  }
+  if (typeof asort === "string" && typeof bsort === "string") {
+    return asort.localeCompare(bsort);
+  }
+
+  throw new Error("Invalid sort");
+}
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export type DocumentQuery = z.infer<typeof DocumentQuery>;
+
+export function documentQuery(
+  db: string,
+  coll: string,
+  request: DocumentQuery
+): Document[] | ErrorResponse {
+  const query = parseQuery(request.query);
+
+  // Validate the query
+  if (!query.success) {
+    console.error(query.message);
+    return { code: "InvalidQuery", message: "Query can't be parsed" };
+  }
+
+  if (
+    query.tables.length !== 1 ||
+    query.columns.length !== 1 ||
+    query.columns[0] !== "*"
+  ) {
+    console.error("Invalid query", query);
+    return { code: "InvalidQuery", message: "Invalid query" };
+  }
+
+  // Execute the query
+  let documents = documentGetAll(db, coll);
+
+  for (const sort of query.sorts) {
+    documents = documents.sort((a, b) => sortDocument(a, b, sort));
+  }
+
+  return documents;
+}
+
+export default {
+  create: documentCreate,
+  getAll: documentGetAll,
+  query: documentQuery,
+};
