@@ -23,6 +23,17 @@ export function databaseGetAll(): Database[] {
     .map((file) => JSON.parse(file));
 }
 
+export function databaseDelete(db: string): boolean {
+  const hash = hashString(db);
+  if (fs.existsSync(`./data/${hash}.json`)) {
+    fs.rmSync(`./data/${hash}.json`);
+    fs.rmSync(`./data/${hash}`, { recursive: true });
+    return true;
+  } else {
+    return false;
+  }
+}
+
 export const DatabaseCreate = z
   .object({
     id: z.string(),
@@ -44,7 +55,7 @@ export function databaseCreate(request: DatabaseCreate): Database {
     _users: "users/",
   };
 
-  fs.mkdirSync("./data", { recursive: true });
+  fs.mkdirSync(`./data/${hash}`, { recursive: true });
   fs.writeFileSync(`./data/${hash}.json`, JSON.stringify(database, null, 2));
 
   return database;
@@ -63,7 +74,8 @@ export function databaseGetOne(db: string): Database | ErrorResponse {
 }
 
 export default {
-  getAll: databaseGetAll,
   create: databaseCreate,
+  delete: databaseDelete,
+  getAll: databaseGetAll,
   getOne: databaseGetOne,
 };

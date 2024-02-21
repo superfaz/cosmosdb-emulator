@@ -48,4 +48,16 @@ describe("database", () => {
         expect(res.body).toEqual(expected);
       });
   });
+
+  test("delete", async () => {
+    await request(app)
+      .post("/dbs")
+      .send({ id: "test-db-todelete" })
+      .expect(200)
+      .then((res) => {
+        expect(res.body.id).toEqual("test-db-todelete");
+      });
+
+    await request(app).delete("/dbs/test-db-todelete").send().expect(204);
+  });
 });

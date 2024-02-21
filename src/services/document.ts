@@ -144,8 +144,23 @@ export function documentQuery(
   return documents;
 }
 
+export function documentDelete(db: string, coll: string, doc: string): boolean {
+  const dbHash = hashString(db);
+  const collHash = hashString(coll);
+  const docHash = hashString(doc);
+  const basePath = `./data/${dbHash}/colls/${collHash}/docs/${docHash}`;
+
+  if (fs.existsSync(basePath + ".json")) {
+    fs.rmSync(basePath + ".json");
+    return true;
+  } else {
+    return false;
+  }
+}
+
 export default {
   create: documentCreate,
+  delete: documentDelete,
   getAll: documentGetAll,
   getOne: documentGetOne,
   query: documentQuery,

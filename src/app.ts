@@ -1,5 +1,6 @@
 import bodyParser from "body-parser";
 import express from "express";
+import type { NextFunction, Request, Response } from "express";
 import { pinoHttp } from "pino-http";
 import { ZodError, z } from "zod";
 import { hashString, isErrorResponse } from "./helper";
@@ -34,29 +35,6 @@ app.all("*", (req, res, next) => {
   next();
 });
 
-/**
- * Middleware to handle errors.
- */
-app.all("*", (req, res, next) => {
-  try {
-    next();
-  } catch (error) {
-    if (error instanceof ZodError) {
-      req.log.error("Invalid input", error.errors);
-      res.status(400).json({
-        code: "BadRequest",
-        message: "Invalid input",
-      });
-    } else {
-      req.log.fatal("Unknown error", error);
-      res.status(500).json({
-        code: "InternalServerError",
-        message: "An error occurred",
-      });
-    }
-  }
-});
-
 app.get("/", (req, res) => {
   res.json(server.info());
 });
@@ -83,6 +61,12 @@ app.get("/dbs/:db", (req, res) => {
   }
 
   res.json(instance);
+});
+
+app.delete("/dbs/:db", (req, res) => {
+  const db = z.string().parse(req.params.db);
+  const deleted = database.delete(db);
+  res.status(deleted ? 204 : 404).send();
 });
 
 app.get("/dbs/:db/colls", (req, res) => {
@@ -112,6 +96,13 @@ app.get("/dbs/:db/colls/:coll", (req, res) => {
   res.json(instance);
 });
 
+app.delete("/dbs/:db/colls/:coll", (req, res) => {
+  const db = z.string().parse(req.params.db);
+  const coll = z.string().parse(req.params.coll);
+  const deleted = container.delete(db, coll);
+  res.status(deleted ? 204 : 404).send();
+});
+
 app.get("/dbs/:db/colls/:coll/docs", (req, res) => {
   const db = z.string().parse(req.params.db);
   const coll = z.string().parse(req.params.coll);
@@ -133,6 +124,14 @@ app.get("/dbs/:db/colls/:coll/docs/:doc", (req, res) => {
   }
 
   res.json(instance);
+});
+
+app.delete("/dbs/:db/colls/:coll/docs/:doc", (req, res) => {
+  const db = z.string().parse(req.params.db);
+  const coll = z.string().parse(req.params.coll);
+  const doc = z.string().parse(req.params.doc);
+  const deleted = document.delete(db, coll, doc);
+  res.status(deleted ? 204 : 404).send();
 });
 
 app.post("/dbs/:db/colls/:coll/docs", configuredBodyParser, (req, res) => {
@@ -166,6 +165,30 @@ app.all("*", configuredBodyParser, (req, res, next) => {
   req.log.debug(`Headers: ${JSON.stringify(req.headers, null, 2)}`);
   req.log.debug(`Body: ${JSON.stringify(req.body, null, 2)}`);
   next();
+});
+
+/**
+ * Middleware to handle errors.
+ */
+app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) {
+    next(error);
+    return;
+  }
+
+  if (error instanceof ZodError) {
+    req.log.error("Invalid input" + JSON.stringify(error.errors, null, 2));
+    res.status(400).json({
+      code: "BadRequest",
+      message: "Invalid input",
+    });
+  } else {
+    req.log.fatal("Unknown error: " + JSON.stringify(error, null, 2));
+    res.status(500).json({
+      code: "InternalServerError",
+      message: "An error occurred",
+    });
+  }
 });
 
 export default app;

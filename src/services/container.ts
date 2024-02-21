@@ -99,7 +99,7 @@ export function containerCreate(
     _conflicts: "conflicts/",
   };
 
-  fs.mkdirSync(`./data/${dbHash}/colls`, { recursive: true });
+  fs.mkdirSync(`./data/${dbHash}/colls/${idHash}`, { recursive: true });
   fs.writeFileSync(
     `./data/${dbHash}/colls/${idHash}.json`,
     JSON.stringify(collection, null, 2)
@@ -138,8 +138,22 @@ export function containerGetOne(
   }
 }
 
+export function containerDelete(db: string, coll: string): boolean {
+  const dbHash = hashString(db);
+  const collHash = hashString(coll);
+  const basePath = `./data/${dbHash}/colls/${collHash}`;
+  if (fs.existsSync(basePath + ".json")) {
+    fs.rmSync(basePath + ".json");
+    fs.rmSync(basePath, { recursive: true });
+    return true;
+  } else {
+    return false;
+  }
+}
+
 export default {
   create: containerCreate,
+  delete: containerDelete,
   getAll: containerGetAll,
   getOne: containerGetOne,
 };

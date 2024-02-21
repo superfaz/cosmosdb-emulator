@@ -49,4 +49,11 @@ describe("document", () => {
         expect(res.body).toEqual(expected);
       });
   });
+
+  test("delete", async () => {
+    await request(app)
+      .delete(baseUrl + "/test-document")
+      .send()
+      .expect(204);
+  });
 });

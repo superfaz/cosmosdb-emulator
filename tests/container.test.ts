@@ -79,4 +79,11 @@ describe("container", () => {
         expect(res.body).toEqual(expected);
       });
   });
+
+  test("delete", async () => {
+    await request(app)
+      .delete("/dbs/test/colls/test-container")
+      .send()
+      .expect(204);
+  });
 });
