@@ -1,7 +1,7 @@
 /* eslint-disable sonarjs/no-duplicate-string */
 
 import { describe, expect, test } from "vitest";
-import { parseQuery } from "../src/parseQuery";
+import { parseQuery } from "../src/parser";
 
 describe("parseQuery", () => {
   test("parses a simple query", () => {

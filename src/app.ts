@@ -1,11 +1,14 @@
-import { randomUUID } from "node:crypto";
-import fs from "node:fs";
 import bodyParser from "body-parser";
 import express from "express";
 import { pinoHttp } from "pino-http";
 import { ZodError, z } from "zod";
+import { isErrorResponse } from "./helper";
 import { rootLogger } from "./logger";
-import { hashString } from "./helper";
+import { parseQuery } from "./parser";
+import container, { ContainerCreate } from "./services/container";
+import database, { DatabaseCreate } from "./services/database";
+import server from "./services/server";
+import document from "./services/document";
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -56,182 +59,50 @@ app.all("*", (req, res, next) => {
 });
 
 app.get("/", (req, res) => {
-  res.json({
-    _self: "",
-    id: "localhost",
-    _rid: "localhost",
-    media: "//media/",
-    addresses: "//addresses/",
-    _dbs: "//dbs/",
-    writableLocations: [
-      {
-        name: "South Central US",
-        databaseAccountEndpoint: "https://172.17.0.2:8081/",
-      },
-    ],
-    readableLocations: [
-      {
-        name: "South Central US",
-        databaseAccountEndpoint: "https://172.17.0.2:8081/",
-      },
-    ],
-    enableMultipleWriteLocations: false,
-    userReplicationPolicy: {
-      asyncReplication: false,
-      minReplicaSetSize: 1,
-      maxReplicasetSize: 4,
-    },
-    userConsistencyPolicy: {
-      defaultConsistencyLevel: "Session",
-    },
-    systemReplicationPolicy: {
-      minReplicaSetSize: 1,
-      maxReplicasetSize: 4,
-    },
-    readPolicy: {
-      primaryReadCoefficient: 1,
-      secondaryReadCoefficient: 1,
-    },
-    queryEngineConfiguration:
-      '{"allowNewKeywords":true,"maxJoinsPerSqlQuery":10,"maxQueryRequestTimeoutFraction":0.9,"maxSqlQueryInputLength":524288,"maxUdfRefPerSqlQuery":10,"queryMaxInMemorySortDocumentCount":-1000,"spatialMaxGeometryPointCount":256,"sqlAllowNonFiniteNumbers":false,"sqlDisableOptimizationFlags":0,"enableSpatialIndexing":true,"maxInExpressionItemsCount":2147483647,"maxLogicalAndPerSqlQuery":2147483647,"maxLogicalOrPerSqlQuery":2147483647,"maxSpatialQueryCells":2147483647,"sqlAllowAggregateFunctions":true,"sqlAllowGroupByClause":true,"sqlAllowLike":true,"sqlAllowSubQuery":true,"sqlAllowScalarSubQuery":true,"sqlAllowTop":true}',
-  });
+  res.json(server.info());
 });
 
 app.get("/dbs", (req, res) => {
-  fs.mkdirSync("./data", { recursive: true });
-  const files = fs
-    .readdirSync("./data")
-    .filter((file) => file.endsWith(".json"));
+  const databases = database.getAll();
   res.json({
     _rid: "localhost",
-    Databases: files
-      .map((file) => fs.readFileSync("./data/" + file, "utf-8"))
-      .map((file) => JSON.parse(file)),
-    _count: files.length,
+    Databases: databases,
+    _count: databases.length,
   });
 });
 
-const DatabaseCreate = z
-  .object({
-    id: z.string(),
-  })
-  .strict();
 app.post("/dbs", configuredBodyParser, (req, res) => {
   const request = DatabaseCreate.parse(req.body);
-  const hash = hashString(request.id);
-  const database = {
-    id: request.id,
-    _rid: hash,
-    _self: `dbs/${hash}/`,
-    _etag: randomUUID(),
-    _colls: "colls/",
-    _users: "users/",
-    _ts: Math.floor(new Date().getTime() / 1000),
-  };
-
-  fs.mkdirSync("./data", { recursive: true });
-  fs.writeFileSync(`./data/${hash}.json`, JSON.stringify(database, null, 2));
-
-  res.json(database);
+  res.json(database.create(request));
 });
 
 app.get("/dbs/:db", (req, res) => {
   const db = z.string().parse(req.params.db);
-  const hash = hashString(db);
-  if (fs.existsSync(`./data/${hash}.json`)) {
-    res.json(JSON.parse(fs.readFileSync(`./data/${hash}.json`, "utf-8")));
-  } else {
-    res.status(404).json({
-      code: "NotFound",
-      message: "Resource Not Found",
-    });
+  const instance = database.getOne(db);
+  if (isErrorResponse(instance)) {
+    res.status(404);
   }
+
+  res.json(instance);
 });
 
-const ContainerCreate = z
-  .object({
-    id: z.string(),
-    partitionKey: z.object({
-      paths: z.array(z.string()),
-    }),
-  })
-  .strict();
 app.post("/dbs/:db/colls", configuredBodyParser, (req, res) => {
-  const dbHash = hashString(z.string().parse(req.params.db));
+  const db = z.string().parse(req.params.db);
   const request = ContainerCreate.parse(req.body);
-  const idHash = hashString(request.id);
-
-  const collection = {
-    id: request.id,
-    partitionKey: {
-      paths: req.body.partitionKey.paths,
-      kind: "Hash",
-    },
-    indexingPolicy: {
-      indexingMode: "consistent",
-      automatic: true,
-      includedPaths: [
-        {
-          path: "/*",
-        },
-      ],
-      excludedPaths: [
-        {
-          path: '/"_etag"/?',
-        },
-      ],
-    },
-    conflictResolutionPolicy: {
-      mode: "LastWriterWins",
-      conflictResolutionPath: "/_ts",
-      conflictResolutionProcedure: "",
-    },
-    geospatialConfig: {
-      type: "Geography",
-    },
-    _rid: idHash,
-    _ts: Math.floor(new Date().getTime() / 1000),
-    _self: `dbs/${dbHash}/colls/${idHash}/`,
-    _etag: randomUUID(),
-    _colls: "colls/",
-    _users: "users/",
-    _docs: "docs/",
-    _sprocs: "sprocs/",
-    _triggers: "triggers/",
-    _udfs: "udfs/",
-    _conflicts: "conflicts/",
-  };
-
-  fs.mkdirSync(`./data/${dbHash}/colls`, { recursive: true });
-  fs.writeFileSync(
-    `./data/${dbHash}/colls/${idHash}.json`,
-    JSON.stringify(collection, null, 2)
-  );
-
-  res.json(collection);
+  res.json(container.create(db, request));
 });
 
 app.get("/dbs/:db/colls/:coll", (req, res) => {
-  const dbHash = hashString(z.string().parse(req.params.db));
-  const collHash = hashString(z.string().parse(req.params.coll));
-  if (fs.existsSync(`./data/${dbHash}/colls/${collHash}.json`)) {
-    res.json(
-      JSON.parse(
-        fs.readFileSync(`./data/${dbHash}/colls/${collHash}.json`, "utf-8")
-      )
-    );
-  } else {
-    res.status(404).json({
-      code: "NotFound",
-      message: "Resource Not Found",
-    });
+  const db = z.string().parse(req.params.db);
+  const coll = z.string().parse(req.params.coll);
+  const instance = container.getOne(db, coll);
+  if (isErrorResponse(instance)) {
+    res.status(404);
   }
+
+  res.json(instance);
 });
 
-// Request:
-// {
-//   "id": "20240110-update-classes-id"
-// }
 const DocumentCreate = z.object({
   id: z.string(),
 });
@@ -239,38 +110,22 @@ const Query = z.object({
   query: z.string(),
 });
 app.post("/dbs/:db/colls/:coll/docs", configuredBodyParser, (req, res) => {
+  const db = z.string().parse(req.params.db);
+  const coll = z.string().parse(req.params.coll);
+
   req.log.info(`Headers: ${JSON.stringify(req.headers, null, 2)}`);
   if (
-    req.headers["x-ms-cosmos-is-query-plan-request"] !== undefined &&
+    req.headers["x-ms-documentdb-isquery"] === "true" ||
     req.headers["x-ms-cosmos-is-query-plan-request"] === "True"
   ) {
-    req.log.info(`Body: ${JSON.stringify(req.body, null, 2)}`);
-    const query = Query.parse(req.body);
-    
+    const request = Query.parse(req.body);
+    const query = parseQuery(request.query);
+    res.log.info(query);
+
+    res.json(document.getAll(db, coll));
   } else {
-    const dbHash = hashString(z.string().parse(req.params.db));
-    const collHash = hashString(z.string().parse(req.params.coll));
     const request = DocumentCreate.parse(req.body);
-    const idHash = hashString(request.id);
-
-    const document = {
-      ...req.body,
-      _etag: randomUUID(),
-      _rid: idHash,
-      _self: `dbs/${dbHash}/colls/${collHash}/docs/${idHash}/`,
-      _ts: Math.floor(new Date().getTime() / 1000),
-      _attachments: "attachments/",
-    };
-
-    fs.mkdirSync(`./data/${dbHash}/colls/${collHash}/docs`, {
-      recursive: true,
-    });
-    fs.writeFileSync(
-      `./data/${dbHash}/colls/${collHash}/docs/${idHash}.json`,
-      JSON.stringify(document, null, 2)
-    );
-
-    res.json(document);
+    res.json(document.create(db, coll, request));
   }
 });
 
