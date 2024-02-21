@@ -34,13 +34,13 @@ describe("document", () => {
         expect(res.body).toEqual({
           _rid: "localhost",
           _count: expect.any(Number),
-          Databases: expect.any(Array),
+          Documents: expect.any(Array),
         });
-        expect(res.body.Databases).toContainEqual(expected);
+        expect(res.body.Documents).toContainEqual(expected);
       });
   });
 
-  test.skip("get", async () => {
+  test("get", async () => {
     await request(app)
       .get(baseUrl + "/test-document")
       .send()

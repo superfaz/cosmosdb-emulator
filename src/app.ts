@@ -123,6 +123,18 @@ app.get("/dbs/:db/colls/:coll/docs", (req, res) => {
   });
 });
 
+app.get("/dbs/:db/colls/:coll/docs/:doc", (req, res) => {
+  const db = z.string().parse(req.params.db);
+  const coll = z.string().parse(req.params.coll);
+  const doc = z.string().parse(req.params.doc);
+  const instance = document.getOne(db, coll, doc);
+  if (isErrorResponse(instance)) {
+    res.status(404);
+  }
+
+  res.json(instance);
+});
+
 app.post("/dbs/:db/colls/:coll/docs", configuredBodyParser, (req, res) => {
   const db = z.string().parse(req.params.db);
   const coll = z.string().parse(req.params.coll);

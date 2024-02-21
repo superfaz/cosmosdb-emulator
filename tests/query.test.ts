@@ -5,6 +5,7 @@ import { hashString } from "../src/helper";
 
 describe("document query", () => {
   const baseUrl = "/dbs/test/colls/test-query/docs";
+  const baseHash = `dbs/${hashString("test")}/colls/${hashString("test-query")}/docs`;
 
   const data = [
     {
@@ -34,19 +35,19 @@ describe("document query", () => {
       ...baseExcepted,
       ...data[0],
       _rid: hashString("1"),
-      _self: `dbs/${hashString("test")}/colls/${hashString("test")}/docs/${hashString("1")}/`,
+      _self: `${baseHash}/${hashString("1")}/`,
     },
     {
       ...baseExcepted,
       ...data[1],
       _rid: hashString("2"),
-      _self: `dbs/${hashString("test")}/colls/${hashString("test")}/docs/${hashString("2")}/`,
+      _self: `${baseHash}/${hashString("2")}/`,
     },
     {
       ...baseExcepted,
       ...data[2],
       _rid: hashString("3"),
-      _self: `dbs/${hashString("test")}/colls/${hashString("test")}/docs/${hashString("3")}/`,
+      _self: `${baseHash}/${hashString("3")}/`,
     },
   ];
 
@@ -61,17 +62,33 @@ describe("document query", () => {
     }
   });
 
-  test.skip("simple query", async () => {
+  test("simple query", async () => {
     await request(app)
       .post(baseUrl)
       .set("content-type", "application/query+json")
       .set("x-ms-documentdb-isquery", "true")
       .send({ query: "select * from c" })
       .then((res) => {
-        expect(res.body).toHaveLength(3);
-        expect(res.body).toContainEqual(expected[0]);
-        expect(res.body).toContainEqual(expected[1]);
-        expect(res.body).toContainEqual(expected[2]);
+        expect(res.body).toHaveProperty("Documents");
+        expect(res.body.Documents).toHaveLength(3);
+        expect(res.body._count).toBe(3);
+        expect(res.body.Documents).toContainEqual(expected[0]);
+        expect(res.body.Documents).toContainEqual(expected[1]);
+        expect(res.body.Documents).toContainEqual(expected[2]);
+      });
+  });
+
+  test("ordered query", async () => {
+    await request(app)
+      .post(baseUrl)
+      .set("content-type", "application/query+json")
+      .set("x-ms-documentdb-isquery", "true")
+      .send({ query: "select * from c order by c.data" })
+      .then((res) => {
+        expect(res.body).toHaveProperty("Documents");
+        expect(res.body.Documents).toHaveLength(3);
+        expect(res.body._count).toBe(3);
+        expect(res.body.Documents).toEqual(expected.reverse());
       });
   });
 });

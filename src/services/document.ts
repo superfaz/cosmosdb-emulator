@@ -65,6 +65,26 @@ export function documentGetAll(db: string, coll: string): Document[] {
     .map((file) => JSON.parse(file));
 }
 
+export function documentGetOne(
+  db: string,
+  coll: string,
+  id: string
+): Document | ErrorResponse {
+  const dbHash = hashString(db);
+  const collHash = hashString(coll);
+  const idHash = hashString(id);
+  const path = `./data/${dbHash}/colls/${collHash}/docs/${idHash}.json`;
+
+  if (fs.existsSync(path)) {
+    return JSON.parse(fs.readFileSync(path, "utf-8"));
+  } else {
+    return {
+      code: "NotFound",
+      message: "Resource Not Found",
+    };
+  }
+}
+
 export const DocumentQuery = z.object({
   query: z.string(),
 });
@@ -114,7 +134,8 @@ export function documentQuery(
   let documents = documentGetAll(db, coll);
 
   for (const sort of query.sorts) {
-    documents = documents.sort((a, b) => sortDocument(a, b, sort));
+    const cleanSort = sort.substring(sort.indexOf(".") + 1);
+    documents = documents.sort((a, b) => sortDocument(a, b, cleanSort));
   }
 
   return documents;
@@ -123,5 +144,6 @@ export function documentQuery(
 export default {
   create: documentCreate,
   getAll: documentGetAll,
+  getOne: documentGetOne,
   query: documentQuery,
 };

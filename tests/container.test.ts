@@ -55,18 +55,18 @@ describe("container", () => {
       });
   });
 
-  test.skip("list", async () => {
+  test("list", async () => {
     await request(app)
       .get("/dbs/test/colls")
       .send()
       .expect(200)
       .then((res) => {
         expect(res.body).toEqual({
-          _rid: "localhost",
+          _rid: hashString("test"),
           _count: expect.any(Number),
-          Databases: expect.any(Array),
+          DocumentCollections: expect.any(Array),
         });
-        expect(res.body.Databases).toContainEqual(expected);
+        expect(res.body.DocumentCollections).toContainEqual(expected);
       });
   });
 
