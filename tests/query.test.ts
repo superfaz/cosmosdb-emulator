@@ -78,12 +78,16 @@ describe("document query", () => {
       });
   });
 
-  test("ordered query", async () => {
+  const cases = [
+    { name: "standard", query: "select * from c order by c.data" },
+    { name: "['']", query: "select * from c order by c['order']" },
+  ];
+  test.each(cases)("ordered query $name", async ({ query }) => {
     await request(app)
       .post(baseUrl)
       .set("content-type", "application/query+json")
       .set("x-ms-documentdb-isquery", "true")
-      .send({ query: "select * from c order by c.data" })
+      .send({ query })
       .then((res) => {
         expect(res.body).toHaveProperty("Documents");
         expect(res.body.Documents).toHaveLength(3);

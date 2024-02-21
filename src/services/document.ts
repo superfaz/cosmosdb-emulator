@@ -96,7 +96,7 @@ function sortDocument(a: Document, b: Document, sort: string): number {
     throw new Error("Invalid sort");
   }
   if (typeof asort === "number" && typeof bsort === "number") {
-    return asort - bsort;
+    return bsort - asort;
   }
   if (typeof asort === "string" && typeof bsort === "string") {
     return asort.localeCompare(bsort);
@@ -134,7 +134,10 @@ export function documentQuery(
   let documents = documentGetAll(db, coll);
 
   for (const sort of query.sorts) {
-    const cleanSort = sort.substring(sort.indexOf(".") + 1);
+    const cleanSort = sort
+      .substring(sort.indexOf(".") + 1)
+      .substring(sort.indexOf("['") + 1)
+      .replace(/['\]]/g, "");
     documents = documents.sort((a, b) => sortDocument(a, b, cleanSort));
   }
 

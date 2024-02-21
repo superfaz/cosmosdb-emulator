@@ -64,6 +64,18 @@ describe("parseQuery", () => {
     });
   });
 
+  test("parses a ORDER BY special clause", () => {
+    const query = "SELECT people.name FROM people ORDER BY people['name']";
+    const result = parseQuery(query);
+    expect(result).toEqual({
+      success: true,
+      columns: ["people.name"],
+      tables: ["people"],
+      filters: [],
+      sorts: ["people['name']"],
+    });
+  });
+
   test("parses a ORDER BY complete clause DESC", () => {
     const query = "SELECT people.name FROM people ORDER BY people.name DESC";
     const result = parseQuery(query);

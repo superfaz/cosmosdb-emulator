@@ -5,6 +5,7 @@ const fromMatcher = /^\s*FROM\s+(.+)$/i;
 const whereMatcher = /^\s*WHERE\s+(.+)$/i;
 const orderByMatcher = /^\s*ORDER\s+BY\s+(.+)$/i;
 const columnMatcher = /^\s*([.\w]+)\s*(.*)/;
+const specialColumnMatcher = /^\s*(\w+\['.+'\])\s*(.*)/;
 const tableMatcher = /^\s*(\w+)\s+(.*)/;
 const doneMatcher = /^(\s*)$/;
 const valueMatcher = /^(\d+|'[\w\s]+'|"[\w\s]+")(.*)/;
@@ -167,6 +168,7 @@ class Parser {
 
   column(callback: (value: string) => void): Parser {
     return this.or(
+      (p) => p.execute(specialColumnMatcher, callback),
       (p) => p.execute(columnMatcher, callback),
       (p) => p.execute(valueMatcher, callback)
     );
@@ -211,7 +213,8 @@ class Parser {
 
   sorts(callback: (value: string) => void): Parser {
     return this.loop(
-      (p) => p.column(callback).optional((p) => p.execute(/^\s*(ASC|DESC)\s+(.*)/i)),
+      (p) =>
+        p.column(callback).optional((p) => p.execute(/^\s*(ASC|DESC)\s+(.*)/i)),
       (p) => p.comma()
     );
   }
