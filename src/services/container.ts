@@ -108,6 +108,18 @@ export function containerCreate(
   return collection;
 }
 
+export function containerGetAll(db: string): Container[] {
+  const dbHash = hashString(db);
+  const basePath = `./data/${dbHash}/colls/`;
+
+  fs.mkdirSync(basePath, { recursive: true });
+  return fs
+    .readdirSync(basePath)
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => fs.readFileSync(basePath + file, "utf-8"))
+    .map((file) => JSON.parse(file));
+}
+
 export function containerGetOne(
   db: string,
   coll: string
@@ -126,4 +138,8 @@ export function containerGetOne(
   }
 }
 
-export default { create: containerCreate, getOne: containerGetOne };
+export default {
+  create: containerCreate,
+  getAll: containerGetAll,
+  getOne: containerGetOne,
+};

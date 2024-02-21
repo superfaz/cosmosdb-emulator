@@ -55,16 +55,13 @@ export function documentCreate(
 export function documentGetAll(db: string, coll: string): Document[] {
   const dbHash = hashString(db);
   const collHash = hashString(coll);
+  const basePath = `./data/${dbHash}/colls/${collHash}/docs/`;
 
+  fs.mkdirSync(basePath, { recursive: true });
   return fs
-    .readdirSync(`./data/${dbHash}/colls/${collHash}/docs`)
+    .readdirSync(basePath)
     .filter((file) => file.endsWith(".json"))
-    .map((file) =>
-      fs.readFileSync(
-        `./data/${dbHash}/colls/${collHash}/docs/` + file,
-        "utf-8"
-      )
-    )
+    .map((file) => fs.readFileSync(basePath + file, "utf-8"))
     .map((file) => JSON.parse(file));
 }
 

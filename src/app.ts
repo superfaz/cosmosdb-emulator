@@ -2,7 +2,7 @@ import bodyParser from "body-parser";
 import express from "express";
 import { pinoHttp } from "pino-http";
 import { ZodError, z } from "zod";
-import { isErrorResponse } from "./helper";
+import { hashString, isErrorResponse } from "./helper";
 import { rootLogger } from "./logger";
 import container, { ContainerCreate } from "./services/container";
 import database, { DatabaseCreate } from "./services/database";
@@ -85,6 +85,16 @@ app.get("/dbs/:db", (req, res) => {
   res.json(instance);
 });
 
+app.get("/dbs/:db/colls", (req, res) => {
+  const db = z.string().parse(req.params.db);
+  const collections = container.getAll(db);
+  res.json({
+    _rid: `${hashString(db)}`,
+    DocumentCollections: collections,
+    _count: collections.length,
+  });
+});
+
 app.post("/dbs/:db/colls", configuredBodyParser, (req, res) => {
   const db = z.string().parse(req.params.db);
   const request = ContainerCreate.parse(req.body);
@@ -102,6 +112,17 @@ app.get("/dbs/:db/colls/:coll", (req, res) => {
   res.json(instance);
 });
 
+app.get("/dbs/:db/colls/:coll/docs", (req, res) => {
+  const db = z.string().parse(req.params.db);
+  const coll = z.string().parse(req.params.coll);
+  const documents = document.getAll(db, coll);
+  res.json({
+    _rid: `${hashString(coll)}`,
+    Documents: documents,
+    _count: documents.length,
+  });
+});
+
 app.post("/dbs/:db/colls/:coll/docs", configuredBodyParser, (req, res) => {
   const db = z.string().parse(req.params.db);
   const coll = z.string().parse(req.params.coll);
@@ -111,7 +132,16 @@ app.post("/dbs/:db/colls/:coll/docs", configuredBodyParser, (req, res) => {
     req.headers["x-ms-cosmos-is-query-plan-request"] === "True"
   ) {
     const request = DocumentQuery.parse(req.body);
-    res.json(document.query(db, coll, request));
+    const documents = document.query(db, coll, request);
+    if (isErrorResponse(documents)) {
+      res.status(400).json(documents);
+    } else {
+      res.json({
+        _rid: `${hashString(coll)}`,
+        Documents: documents,
+        _count: documents.length,
+      });
+    }
   } else {
     const request = DocumentCreate.parse(req.body);
     res.json(document.create(db, coll, request));
