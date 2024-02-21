@@ -1,6 +1,5 @@
 {
   "name": "cosmosdb-emulator",
-  "type": "module",
   "version": "0.1.0",
   "description": "Emulate cosmosdb NoSql tier",
   "main": "src/index.ts",
