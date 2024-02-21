@@ -3,14 +3,17 @@ import fs from "node:fs";
 import { z } from "zod";
 import { hashString } from "../helper";
 
-export const DocumentCreate = z.object({
-  id: z.string(),
+export const DocumentCreate = z.custom<{
+  [key: string]: unknown;
+  id: string;
+}>((data) => {
+  return z.record(z.string(), z.unknown()).safeParse(data).success;
 });
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export type DocumentCreate = z.infer<typeof DocumentCreate>;
 
-export interface Document {
+export interface Document extends Record<string, unknown> {
   id: string;
   _etag: string;
   _rid: string;

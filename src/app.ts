@@ -8,7 +8,7 @@ import { parseQuery } from "./parser";
 import container, { ContainerCreate } from "./services/container";
 import database, { DatabaseCreate } from "./services/database";
 import server from "./services/server";
-import document from "./services/document";
+import document, { DocumentCreate } from "./services/document";
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -103,9 +103,6 @@ app.get("/dbs/:db/colls/:coll", (req, res) => {
   res.json(instance);
 });
 
-const DocumentCreate = z.object({
-  id: z.string(),
-});
 const Query = z.object({
   query: z.string(),
 });
