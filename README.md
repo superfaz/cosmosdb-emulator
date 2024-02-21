@@ -19,6 +19,7 @@ Current restrictions for the project:
 ## How to deploy
 
 ```bash
+docker pull superfaz/cosmosdb-emulator:latest
 docker run --name cosmosdb-emulator -p 127.0.0.1:8081:8081 -v data:/app/data -d superfaz/cosmosdb-emulator:latest
 ```
 
